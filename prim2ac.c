@@ -18,8 +18,8 @@ int p[N/10];
 int indexPrim;
 int pp;
 
-pthread_mutex_t escriurePrim;
-pthread_mutex_t sumarPrim;
+pthread_mutex_t escriurePrim = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t sumarPrim = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct{
     int principi;
@@ -28,26 +28,44 @@ typedef struct{
 
 void *buscar_primer(void *arg){
     rang *rang_local= (rang *)arg;
+    clock_t start_thread, end_thread;
+    int local_div;
     int principi = rang_local->principi;
     int final = rang_local->final;
     int primers_locals = 0;
+    printf("principi: %d\n", principi);
+    printf("final: %d\n", final);
+    printf("index pp: %d\n", pp);
 
+    if((principi % 2) == 0) principi++;
 
+    start_thread = clock();
+    for (int i = principi; i <= final; i += 2) {  // Aseguramos incremento correcto
+        local_div = 0;
+    
+        for (int j = 1; p[j]*p[j] <= i && !local_div; j++) {  // Empezamos desde p[0] que es 2
+            local_div = local_div || !(i % p[j]);
+        }
 
-    for(int i = principi; i <= final; i++){
-        int local_div = 0;
-        for(int j = 1; p[j]*p[j] <= i && !local_div; j++) local_div=local_div || (i % p[j]);
-        if(!local_div){
-            primers_locals++;
+        if (!local_div) {
+            //printf("Entro\n");
             pthread_mutex_lock(&escriurePrim);
-            p[indexPrim++] = i;
+            p[pp++] = i;  // Guardamos el número primo
             pthread_mutex_unlock(&escriurePrim);
+            primers_locals++;
         }
     }
+    end_thread = clock();
+    double dif_thread = (double)(end_thread-start_thread)/CLOCKS_PER_SEC;
 
-    pthread_mutex_lock(&sumarPrim);
+    printf("El thread tarda: %f\n ", dif_thread);
+    /*pthread_mutex_lock(&sumarPrim);
+    /*printf("n_primers: %d \n", primers_locals);
     pp += primers_locals;
-    pthread_mutex_unlock(&sumarPrim);
+    pthread_mutex_unlock(&sumarPrim);*/
+
+    free(rang_local);  // Liberamos memoria dinámica
+    pthread_exit(NULL);  // Terminamos el hilo
 
 }
 
@@ -78,7 +96,7 @@ int main(int na,char* arg[])
     num = 5;
 
     start_constant = clock();
-    while (pp < INI)  //no paralelitzar
+    while (pp < INI)
     {
     for (i=1; p[i]*p[i] <= num ;i++)
         if (num % p[i] == 0) break;
@@ -86,8 +104,7 @@ int main(int na,char* arg[])
     num += 2;
     }
     end_constant = clock();
-    indexPrim += pp;
-
+    indexPrim = pp;
 
     /*
     Crear el semafor i els threads, necitem 2 semafors i dividi l'array en parts 
@@ -95,15 +112,14 @@ int main(int na,char* arg[])
 
     */
     // Dividim el rang en parts
-    int rang_total = nn - INI + 1;
-    int mida_per_part = rang_total / num_threads;
+    int rang_total = nn - num;      //Al passar-li número par sempre serà impar
+    int mida_per_part = rang_total / num_threads;   //Sempre donara impar
     int resta = rang_total % num_threads; // Mirem quantes parts necitaran un número extra per a poder executar-se correctament ja que les divisions no tenen perque ser exactes
 
-    int principi = INI;
+    int principi = num;
     int final;
-
     for(int i = 0; i < num_threads; i++){
-        final = principi + mida_per_part - 1;
+        final = principi + mida_per_part;
         if(i < resta) final++;
         rang *rang_thread= malloc(sizeof(rang));
         rang_thread->principi=principi;
@@ -141,4 +157,3 @@ int main(int na,char* arg[])
     //for(i=0;i<pp;i++) printf("%d\n",p[i]);
     exit(0);
 }
-
