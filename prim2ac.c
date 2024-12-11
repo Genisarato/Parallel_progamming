@@ -33,39 +33,31 @@ void *buscar_primer(void *arg){
     int principi = rang_local->principi;
     int final = rang_local->final;
     int primers_locals = 0;
-    printf("principi: %d\n", principi);
-    printf("final: %d\n", final);
-    printf("index pp: %d\n", pp);
 
+    /*
+    Si la part es parell li sumem 1 ja que parell no serà mai prim
+    i així utilizem el bucle donat que va sumant 2 en 2 als imparells
+    */
     if((principi % 2) == 0) principi++;
-
-    start_thread = clock();
-    for (int i = principi; i <= final; i += 2) {  // Aseguramos incremento correcto
+    /*Bucle que només sincronitza si hem d'escriure*/
+    for (int i = principi; i <= final; i += 2) {  
         local_div = 0;
     
-        for (int j = 1; p[j]*p[j] <= i && !local_div; j++) {  // Empezamos desde p[0] que es 2
+        for (int j = 1; p[j]*p[j] <= i && !local_div; j++) {  
             local_div = local_div || !(i % p[j]);
         }
 
         if (!local_div) {
-            //printf("Entro\n");
             pthread_mutex_lock(&escriurePrim);
-            p[pp++] = i;  // Guardamos el número primo
+            p[pp++] = i;  
             pthread_mutex_unlock(&escriurePrim);
             primers_locals++;
         }
     }
-    end_thread = clock();
-    double dif_thread = (double)(end_thread-start_thread)/CLOCKS_PER_SEC;
-
     printf("El thread tarda: %f\n ", dif_thread);
-    /*pthread_mutex_lock(&sumarPrim);
-    /*printf("n_primers: %d \n", primers_locals);
-    pp += primers_locals;
-    pthread_mutex_unlock(&sumarPrim);*/
 
-    free(rang_local);  // Liberamos memoria dinámica
-    pthread_exit(NULL);  // Terminamos el hilo
+    free(rang_local);  
+    pthread_exit(NULL);  
 
 }
 
@@ -83,7 +75,7 @@ int main(int na,char* arg[])
     pthread_mutex_init(&escriurePrim, NULL);
     pthread_mutex_init(&sumarPrim, NULL);
 
-    assert(na==3);	// nombre d'arguments
+    assert(na==3);	
     nn = atoi(arg[1]);
     num_threads = atoi(arg[2]);
     int args[2];
@@ -106,21 +98,19 @@ int main(int na,char* arg[])
     end_constant = clock();
     indexPrim = pp;
 
-    /*
-    Crear el semafor i els threads, necitem 2 semafors i dividi l'array en parts 
-    al no tenir ordenada suposo l'array final de primers haurem de tenir un max suposo
-
-    */
     // Dividim el rang en parts
     int rang_total = nn - num;      //Al passar-li número par sempre serà impar
     int mida_per_part = rang_total / num_threads;   //Sempre donara impar
     int resta = rang_total % num_threads; // Mirem quantes parts necitaran un número extra per a poder executar-se correctament ja que les divisions no tenen perque ser exactes
 
+
     int principi = num;
     int final;
     for(int i = 0; i < num_threads; i++){
-        final = principi + mida_per_part;
-        if(i < resta) final++;
+        if(i < num_threads/2) final = principi + mida_per_part * 1.15 + 1 ; /*Li sumem un 15% més de feina a les n_threads/2 primers threads i arrodonim per a no pedre números*/
+        else final = principi + mida_per_part * 0.85 - 1; /*Li restem un 15% més de feina a les n_threads/2 primers threads i arrodonim per a no pedre números*/
+        if (i == num_threads-1) final = nn;
+        if(i < resta) final++;  /*Li sumem 1 per a no pedre numero al dividi en parts*/
         rang *rang_thread= malloc(sizeof(rang));
         rang_thread->principi=principi;
         rang_thread->final=final;
@@ -133,27 +123,9 @@ int main(int na,char* arg[])
          pthread_join(threads[i], NULL);
     }
     end = clock();
-    /*
-    Fer el join i calcular aqui el clock
-    */
-    //clock
-    /*start = clock();
-    for(;num<nn;num+=2) 
-    {
-        int div = 0; // No divisible
-        for (i=1; p[i]*p[i] <= num && !div;i++)
-            div = div || !(num % p[i]);
-        if (!div) p[pp++]=num;
-    }
-    end = clock();*/
-    //clock -> diferenica es lo temps que tarda en fer-se
 
     double dif_part_principal = (double)(end-start)/CLOCKS_PER_SEC;
     double dif_constant = (double)(end_constant-start_constant)/CLOCKS_PER_SEC;
     printf("El temps que ha tardat en executar-se es: %f \n", dif_part_principal);
-    printf("El temps de la part constant es: %f \n", dif_constant);
-    printf("Hi ha %d primers\n",pp-1);
-    printf("Darrer primer trobat %d\n",p[pp-1]);
-    //for(i=0;i<pp;i++) printf("%d\n",p[i]);
     exit(0);
 }
